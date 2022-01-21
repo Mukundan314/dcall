@@ -4,9 +4,15 @@ import getIPFS from "@/getIPFS";
 
 export default defineComponent({
   name: "Room",
-  data: (): { unsubscribePromise: Promise<() => void> } => ({
-    unsubscribePromise: Promise.resolve(() => undefined),
-  }),
+  data(): {
+    unsubscribePromise: Promise<() => void>;
+    localStream?: MediaStream;
+  } {
+    return {
+      unsubscribePromise: Promise.resolve(() => undefined),
+      localStream: undefined,
+    };
+  },
   props: {
     id: String,
   },
@@ -23,6 +29,20 @@ export default defineComponent({
       },
     },
   },
+  mounted() {
+    navigator.mediaDevices
+      .getUserMedia({
+        audio: true,
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      })
+      .then((stream) => {
+        this.localStream = stream;
+      })
+      .catch(console.error);
+  },
   unmounted() {
     this.unsubscribePromise.then((unsubscribe) => unsubscribe());
   },
@@ -37,5 +57,6 @@ export default defineComponent({
 <template #default>
   <div class="room">
     <p>room id: {{ id }}</p>
+    <video v-if="localStream" :srcObject="localStream" muted autoplay></video>
   </div>
 </template>
