@@ -23,8 +23,24 @@ export default defineComponent({
         this.unsubscribePromise.then((unsubscribe) => unsubscribe());
         this.unsubscribePromise = getIPFS().then(async (ipfs) => {
           const topic = `dcall-${val}`;
+
           await ipfs.pubsub.subscribe(topic, this.handlePubsubMessage);
-          return () => ipfs.pubsub.unsubscribe(topic, this.handlePubsubMessage);
+
+          const interval = setInterval(async () => {
+            const peers = await ipfs.pubsub.peers(topic);
+            await Promise.all(
+              peers.map(async (peer) => {
+                if (this.notConnected(peer)) {
+                  await this.sendOffer(peer);
+                }
+              })
+            );
+          }, 5000);
+
+          return async () => {
+            clearInterval(interval);
+            await ipfs.pubsub.unsubscribe(topic, this.handlePubsubMessage);
+          };
         });
       },
     },
@@ -49,6 +65,13 @@ export default defineComponent({
   methods: {
     handlePubsubMessage() {
       // TODO: handle message from pubsub
+    },
+    notConnected(peer: string) {
+      // TODO: check if peer is connected
+      return true;
+    },
+    async sendOffer(peer: string) {
+      // TODO: send offer to peer
     },
   },
 });
