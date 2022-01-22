@@ -2,15 +2,19 @@
 import { defineComponent } from "vue";
 import getIPFS from "@/getIPFS";
 
+const encoder = new TextEncoder();
+
 export default defineComponent({
   name: "Room",
   data(): {
     unsubscribePromise: Promise<() => void>;
     localStream?: MediaStream;
+    connections: Record<string, RTCPeerConnection>;
   } {
     return {
       unsubscribePromise: Promise.resolve(() => undefined),
       localStream: undefined,
+      connections: {},
     };
   },
   props: {
@@ -31,7 +35,7 @@ export default defineComponent({
             await Promise.all(
               peers.map(async (peer) => {
                 if (this.notConnected(peer)) {
-                  await this.sendOffer(peer);
+                  await this.sendOffer(topic, peer);
                 }
               })
             );
@@ -67,11 +71,22 @@ export default defineComponent({
       // TODO: handle message from pubsub
     },
     notConnected(peer: string) {
-      // TODO: check if peer is connected
-      return true;
+      return (
+        this.connections[peer] === undefined ||
+        this.connections[peer].connectionState !== "connected"
+      );
     },
-    async sendOffer(peer: string) {
-      // TODO: send offer to peer
+    async sendOffer(topic: string, target: string) {
+      const ipfs = await getIPFS();
+      this.connections[target] = new RTCPeerConnection();
+      const offer = await this.connections[target].createOffer();
+      await this.connections[target].setLocalDescription(offer);
+      await ipfs.pubsub.publish(
+        topic,
+        encoder.encode(
+          JSON.stringify({ type: offer.type, sdp: offer.sdp, target })
+        )
+      );
     },
   },
 });
