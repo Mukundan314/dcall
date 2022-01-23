@@ -142,21 +142,23 @@ export default defineComponent({
         }
       }, 5000);
 
-      peerConnection.addEventListener("negotiationneeded", async () => {
-        this.makingOffer.set(target, true);
-        const ipfs = await getIPFS();
-        await peerConnection.setLocalDescription();
-        await ipfs.pubsub.publish(
-          this.topic,
-          encoder.encode(
-            JSON.stringify({
-              target,
-              description: peerConnection.localDescription,
-            })
-          )
-        );
-        this.makingOffer.set(target, false);
-      });
+      if (offer) {
+        peerConnection.addEventListener("negotiationneeded", async () => {
+          this.makingOffer.set(target, true);
+          const ipfs = await getIPFS();
+          await peerConnection.setLocalDescription();
+          await ipfs.pubsub.publish(
+            this.topic,
+            encoder.encode(
+              JSON.stringify({
+                target,
+                description: peerConnection.localDescription,
+              })
+            )
+          );
+          this.makingOffer.set(target, false);
+        });
+      }
 
       peerConnection.addEventListener("icecandidate", async ({ candidate }) => {
         const ipfs = await getIPFS();
@@ -167,14 +169,6 @@ export default defineComponent({
       });
 
       peerConnection.addEventListener("connectionstatechange", () => {
-        if (peerConnection.connectionState === "connected") {
-          if (!offer) {
-            this.localStream
-              .getTracks()
-              .forEach((track) => peerConnection.addTrack(track));
-          }
-        }
-
         if (
           ["disconnected", "failed", "closed"].includes(
             peerConnection.connectionState
@@ -192,11 +186,9 @@ export default defineComponent({
         }
       });
 
-      if (offer) {
-        this.localStream
-          .getTracks()
-          .forEach((track) => peerConnection.addTrack(track));
-      }
+      this.localStream
+        .getTracks()
+        .forEach((track) => peerConnection.addTrack(track));
 
       // TODO: add track if it was added to localStream
       // TODO: remove track if it was removed from localStream
@@ -215,7 +207,6 @@ export default defineComponent({
       v-for="(remoteStream, key) of remoteStreams"
       :key="key"
       :srcObject="remoteStream"
-      muted
       autoplay
     ></video>
   </div>
