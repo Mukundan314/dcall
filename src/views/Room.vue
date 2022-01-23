@@ -6,46 +6,43 @@ const encoder = new TextEncoder();
 
 export default defineComponent({
   name: "Room",
-  data(): {
-    unsubscribePromise: Promise<() => void>;
-    localStream?: MediaStream;
-    connections: Record<string, RTCPeerConnection>;
-  } {
-    return {
-      unsubscribePromise: Promise.resolve(() => undefined),
-      localStream: undefined,
-      connections: {},
-    };
-  },
   props: {
     id: String,
   },
+  data() {
+    return {
+      localStream: new MediaStream(),
+      connections: new Map<string, RTCPeerConnection>(),
+      unsubscribe: () => {
+        /* noop */
+      },
+    };
+  },
+  computed: {
+    topic() {
+      return `dcall-${this.id}`;
+    },
+  },
   watch: {
-    id: {
+    topic: {
       immediate: true,
       handler(val: string) {
-        this.unsubscribePromise.then((unsubscribe) => unsubscribe());
-        this.unsubscribePromise = getIPFS().then(async (ipfs) => {
-          const topic = `dcall-${val}`;
+        this.unsubscribe();
 
-          await ipfs.pubsub.subscribe(topic, this.handlePubsubMessage);
-
+        const promise = getIPFS().then(async (ipfs) => {
+          await ipfs.pubsub.subscribe(val, this.handlePubsubMessage);
           const interval = setInterval(async () => {
-            const peers = await ipfs.pubsub.peers(topic);
-            await Promise.all(
-              peers.map(async (peer) => {
-                if (this.notConnected(peer)) {
-                  await this.sendOffer(topic, peer);
-                }
-              })
-            );
+            const peers = await ipfs.pubsub.peers(val);
+            peers.filter(this.notConnected).map(this.connect);
           }, 5000);
 
-          return async () => {
+          return () => {
             clearInterval(interval);
-            await ipfs.pubsub.unsubscribe(topic, this.handlePubsubMessage);
+            return ipfs.pubsub.unsubscribe(val, this.handlePubsubMessage);
           };
         });
+
+        this.unsubscribe = () => promise.then((unsubscribe) => unsubscribe());
       },
     },
   },
@@ -59,34 +56,64 @@ export default defineComponent({
         },
       })
       .then((stream) => {
-        this.localStream = stream;
+        stream.getTracks().forEach((track) => this.localStream.addTrack(track));
       })
       .catch(console.error);
   },
   unmounted() {
-    this.unsubscribePromise.then((unsubscribe) => unsubscribe());
+    this.unsubscribe();
   },
   methods: {
     handlePubsubMessage() {
       // TODO: handle message from pubsub
     },
     notConnected(peer: string) {
-      return (
-        this.connections[peer] === undefined ||
-        this.connections[peer].connectionState !== "connected"
-      );
+      return this.connections.get(peer)?.connectionState !== "connected";
     },
-    async sendOffer(topic: string, target: string) {
-      const ipfs = await getIPFS();
-      this.connections[target] = new RTCPeerConnection();
-      const offer = await this.connections[target].createOffer();
-      await this.connections[target].setLocalDescription(offer);
-      await ipfs.pubsub.publish(
-        topic,
-        encoder.encode(
-          JSON.stringify({ type: offer.type, sdp: offer.sdp, target })
-        )
-      );
+    connect(target: string) {
+      const peerConnection = new RTCPeerConnection();
+
+      this.connections.get(target)?.close();
+      this.connections.set(target, peerConnection);
+
+      peerConnection.addEventListener("negotiationneeded", async () => {
+        const ipfs = await getIPFS();
+        await peerConnection.setLocalDescription();
+        await ipfs.pubsub.publish(
+          this.topic,
+          encoder.encode(
+            JSON.stringify({
+              target,
+              description: peerConnection.localDescription,
+            })
+          )
+        );
+      });
+
+      peerConnection.addEventListener("icecandidate", async ({ candidate }) => {
+        const ipfs = await getIPFS();
+        await ipfs.pubsub.publish(
+          this.topic,
+          encoder.encode(JSON.stringify({ target, candidate }))
+        );
+      });
+
+      peerConnection.addEventListener("connectionstatechange", () => {
+        if (
+          ["disconnected", "failed", "closed"].includes(
+            peerConnection.connectionState
+          )
+        ) {
+          // TODO: handle disconnect
+        }
+      });
+
+      this.localStream
+        .getTracks()
+        .forEach((track) => peerConnection.addTrack(track));
+
+      // TODO: add track if it was added to localStream
+      // TODO: remove track if it was removed from localStream
     },
   },
 });
@@ -95,6 +122,6 @@ export default defineComponent({
 <template #default>
   <div class="room">
     <p>room id: {{ id }}</p>
-    <video v-if="localStream" :srcObject="localStream" muted autoplay></video>
+    <video :srcObject="localStream" muted autoplay></video>
   </div>
 </template>
