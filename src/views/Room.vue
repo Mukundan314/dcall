@@ -1,6 +1,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import getIPFS from "@/getIPFS";
+import "webrtc-adapter";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -10,14 +11,20 @@ export default defineComponent({
   props: {
     id: String,
   },
-  data() {
+  setup() {
     return {
       localStream: new MediaStream(),
       connections: new Map<string, RTCPeerConnection>(),
       makingOffer: new Map<string, boolean>(),
+      ignoreOffer: new Map<string, boolean>(),
       unsubscribe: () => {
         /* noop */
       },
+    };
+  },
+  data(): { remoteStreams: Record<string, MediaStream> } {
+    return {
+      remoteStreams: {},
     };
   },
   computed: {
@@ -84,12 +91,12 @@ export default defineComponent({
 
       if (target === id) {
         let peerConnection = this.connections.get(from);
-        if (peerConnection === undefined) {
+        if (this.notConnected(from) || !peerConnection) {
           peerConnection = this.connect(from, false);
         }
 
         if (description) {
-          const polite = target < id;
+          const polite = from < id;
           const offerCollision =
             description.type === "offer" &&
             (this.makingOffer.get(from) ||
@@ -160,12 +167,28 @@ export default defineComponent({
       });
 
       peerConnection.addEventListener("connectionstatechange", () => {
+        if (peerConnection.connectionState === "connected") {
+          if (!offer) {
+            this.localStream
+              .getTracks()
+              .forEach((track) => peerConnection.addTrack(track));
+          }
+        }
+
         if (
           ["disconnected", "failed", "closed"].includes(
             peerConnection.connectionState
           )
         ) {
           // TODO: handle disconnect
+        }
+      });
+
+      peerConnection.addEventListener("track", ({ track }) => {
+        if (this.remoteStreams[target] !== undefined) {
+          this.remoteStreams[target].addTrack(track);
+        } else {
+          this.remoteStreams[target] = new MediaStream([track]);
         }
       });
 
@@ -188,5 +211,12 @@ export default defineComponent({
   <div class="room">
     <p>room id: {{ id }}</p>
     <video :srcObject="localStream" muted autoplay></video>
+    <video
+      v-for="(remoteStream, key) of remoteStreams"
+      :key="key"
+      :srcObject="remoteStream"
+      muted
+      autoplay
+    ></video>
   </div>
 </template>
