@@ -130,7 +130,9 @@ export default defineComponent({
       );
     },
     connect(target: string, offer: boolean) {
-      const peerConnection = new RTCPeerConnection();
+      const peerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
 
       this.connections.get(target)?.close();
       this.connections.set(target, peerConnection);
