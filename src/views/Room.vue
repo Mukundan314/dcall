@@ -125,6 +125,7 @@ export default defineComponent({
       }
     },
     notConnected(peer: string) {
+      console.log(peer, this.connections.get(peer)?.connectionState);
       return ["disconnected", "failed", "closed", undefined].includes(
         this.connections.get(peer)?.connectionState
       );
@@ -204,7 +205,7 @@ export default defineComponent({
 <template #default>
   <div class="room">
     <p>room id: {{ id }}</p>
-    <video :srcObject="localStream" muted autoplay></video>
+    <video class="local-stream" :srcObject="localStream" muted autoplay></video>
     <video
       v-for="(remoteStream, key) of remoteStreams"
       :key="key"
@@ -213,3 +214,11 @@ export default defineComponent({
     ></video>
   </div>
 </template>
+
+<style scoped>
+.local-stream {
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+  -moz-transform: rotateY(180deg);
+}
+</style>
