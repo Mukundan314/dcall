@@ -5,12 +5,12 @@ export default defineComponent({
   name: "Home",
   data() {
     return {
-      roomId: "",
+      roomName: "",
     };
   },
   methods: {
     joinRoom() {
-      this.$router.push({ name: "Room", params: { id: this.roomId } });
+      this.$router.push({ name: "Room", params: { name: this.roomName } });
     },
   },
 });
@@ -18,7 +18,7 @@ export default defineComponent({
 
 <template>
   <div class="home">
-    <input v-model="roomId" placeholder="Room ID" />
+    <input v-model="roomName" placeholder="Room Name" />
     <button @click="joinRoom">Join</button>
   </div>
 </template>
