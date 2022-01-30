@@ -1,5 +1,6 @@
 <script lang="ts">
 import { defineComponent } from "vue";
+import StreamContainer from "@/components/StreamContainer.vue";
 import getIPFS from "@/getIPFS";
 import "webrtc-adapter";
 
@@ -10,6 +11,10 @@ const decoder = new TextDecoder();
 
 export default defineComponent({
   name: "Room",
+
+  components: {
+    StreamContainer,
+  },
 
   props: {
     name: String,
@@ -216,15 +221,10 @@ export default defineComponent({
 
 <template>
   <div class="room">
-    <div class="streams">
-      <video class="local-stream" :srcObject="localStream" muted autoplay />
-      <video
-        v-for="(stream, key) in remoteStreams"
-        :key="key"
-        :srcObject="stream"
-        autoplay
-      />
-    </div>
+    <StreamContainer
+      :localStream="localStream"
+      :remoteStreams="remoteStreams"
+    />
     <div class="controls">
       <button @click="leaveRoom">Leave Room</button>
       <button @click="toggleCamera">Toggle Camera</button>
@@ -234,9 +234,9 @@ export default defineComponent({
 </template>
 
 <style scoped>
-.local-stream {
-  transform: rotateY(180deg);
-  -webkit-transform: rotateY(180deg);
-  -moz-transform: rotateY(180deg);
+.room {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 </style>
