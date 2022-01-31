@@ -138,7 +138,7 @@ export default defineComponent({
             return;
           }
 
-          await this.connections.get(from)?.setRemoteDescription(description);
+          await peerConnection.setRemoteDescription(description);
           await peerConnection.setLocalDescription();
           await this.pubsubPublish({
             target: from,
@@ -210,12 +210,18 @@ export default defineComponent({
       this.$router.push({ name: "Home" });
     },
 
-    toggleCamera() {
-      // TODO
+    async toggleCamera() {
+      const videoTracks = this.localStream.getVideoTracks();
+      videoTracks.forEach((track) => {
+        track.enabled = !track.enabled;
+      });
     },
 
-    toggleMicrophone() {
-      // TODO
+    async toggleMicrophone() {
+      const audioTracks = this.localStream.getAudioTracks();
+      audioTracks.forEach((track) => {
+        track.enabled = !track.enabled;
+      });
     },
   },
 });
