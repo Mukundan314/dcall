@@ -30,6 +30,7 @@ body {
 
 /* to keep glowing effect box shadow must be there*/
 .searchbar {
+  vertical-align: middle;
   align-items:center;
   padding: 10px;
   width: 250px;
