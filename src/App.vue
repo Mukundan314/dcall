@@ -54,6 +54,7 @@ body {
 }
 
 .search_button {
+  vertical-align: middle;
   height: 38px;
   margin-left: -4px;
   width: 70px;
