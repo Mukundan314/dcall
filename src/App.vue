@@ -29,6 +29,7 @@ body {
 }
 
 .searchbar {
+  align-items: center;
   padding: 10px;
   width: 250px;
   border: solid #c8ccd0 1px;
@@ -67,26 +68,34 @@ body {
 
 /*Other Buttons*/
 .btn {
-  flex: 1 1 auto;
-  margin: 10px;
-  padding: 30px;
-  text-align: center;
-  text-transform: uppercase;
-  transition: 0.5s;
-  background-size: 200% auto;
-  color: white;
- /* text-shadow: 0px 0px 10px rgba(0,0,0,0.2);*/
-  box-shadow: 0 0 20px #eee;
-  border-radius: 10px;
+  display:inline-block;
+  padding:0.2em 1.45em;
+  margin:0.1em;
+  border:0.15em solid #CCCCCC;
+  box-sizing: border-box;
+  text-decoration:none;
+  font-family:'Segoe UI','Roboto',sans-serif;
+  font-weight:400;
+  color:#000000;
+  background-color:#CCCCCC;
+  text-align:center;
+  position:relative;
  }
 
 .btn:hover {
-  background-position: right center; /* change the direction of the change here */
+  border-color:#7a7a7a;
+}
+.btn:active{
+  background-color:#999999;
+}
+@media all and (max-width:30em){
+.btn{
+    display: block;
+    margin: 0.2em auto;
+}
 }
 
-.btn-1 {
-  background-image: linear-gradient(to right, #16b9ff 0%, #0c42b8 51%, #2700d5 100%);
-}
+
 
 
 </style>
