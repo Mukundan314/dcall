@@ -42,6 +42,7 @@ body {
 .searchbar:focus {
   outline: none;
   border-color: #9ecaed;
+  box-shadow: 0 0 10px #9ecaed;
   width: 280px;
 }
 
