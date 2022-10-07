@@ -24,7 +24,7 @@ export default defineComponent({
       integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU"
       crossorigin="anonymous"
     />
-</head>
+  </head>
 
   <div class="home">
     <div class="search">

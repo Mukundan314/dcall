@@ -31,7 +31,7 @@ body {
 /* to keep glowing effect box shadow must be there*/
 .searchbar {
   vertical-align: middle;
-  align-items:center;
+  align-items: center;
   padding: 10px;
   width: 250px;
   border: solid #c8ccd0 1px;
@@ -68,34 +68,32 @@ body {
   background-color: hsl(0, 0%, 85%);
 }
 
-
 /*Other Buttons*/
 .btn {
-  display:inline-block;
-  padding:0.2em 1.45em;
-  margin:0.1em;
-  border:0.15em solid #CCCCCC;
+  display: inline-block;
+  padding: 0.2em 1.45em;
+  margin: 0.1em;
+  border: 0.15em solid #cccccc;
   box-sizing: border-box;
-  text-decoration:none;
-  font-family:'Segoe UI','Roboto',sans-serif;
-  font-weight:400;
-  color:#000000;
-  background-color:#CCCCCC;
-  text-align:center;
-  position:relative;
- }
+  text-decoration: none;
+  font-family: "Segoe UI", "Roboto", sans-serif;
+  font-weight: 400;
+  color: #000000;
+  background-color: #cccccc;
+  text-align: center;
+  position: relative;
+}
 
 .btn:hover {
-  border-color:#7a7a7a;
+  border-color: #7a7a7a;
 }
-.btn:active{
-  background-color:#999999;
+.btn:active {
+  background-color: #999999;
 }
-@media all and (max-width:30em){
-.btn{
+@media all and (max-width: 30em) {
+  .btn {
     display: block;
     margin: 0.2em auto;
+  }
 }
-}
-
 </style>
