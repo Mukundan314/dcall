@@ -234,9 +234,9 @@ export default defineComponent({
       :remoteStreams="remoteStreams"
     />
     <div class="controls">
-      <button @click="leaveRoom">Leave Room</button>
-      <button @click="toggleCamera">Toggle Camera</button>
-      <button @click="toggleMicrophone">Toggle Microphone</button>
+      <button class="btn" @click="leaveRoom">Leave Room</button>
+      <button class="btn" @click="toggleCamera">Toggle Camera</button>
+      <button class="btn" @click="toggleMicrophone">Toggle Microphone</button>
     </div>
   </div>
 </template>
