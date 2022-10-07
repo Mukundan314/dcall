@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "precache-manifest.3111b1c13cf5315b152a4f085ca569d8.js"
+  "precache-manifest.ba1fe4d45b93ee77eeac99047afea593.js"
 );
 
 workbox.core.setCacheNameDetails({prefix: "dcall"});
