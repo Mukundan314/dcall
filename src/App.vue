@@ -3,7 +3,8 @@
 </template>
 
 <style>
-@import "~sanitize.css";
+@import "sanitize.css";
+@import url(https://fonts.googleapis.com/css?family=Shadows+Into+Light);
 
 html,
 #app {
@@ -16,9 +17,6 @@ html,
   text-align: center;
   color: #2c3e50;
 }
-
-/* Search */
-@import url(https://fonts.googleapis.com/css?family=Shadows+Into+Light);
 
 body {
   height: 100vh;
