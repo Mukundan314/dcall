@@ -15,6 +15,25 @@ export default defineComponent({
     peers: Object as PropType<Record<string, PeerInfo>>,
   },
 
+  data() {
+    return {
+      pipSupported: document.pictureInPictureEnabled ?? false,
+    };
+  },
+
+  methods: {
+    async pip(event: Event) {
+      const tile = (event.target as HTMLElement).closest(".tile");
+      const video = tile?.querySelector("video");
+      if (!video) return;
+      if (document.pictureInPictureElement === video) {
+        await document.exitPictureInPicture();
+      } else {
+        await video.requestPictureInPicture();
+      }
+    },
+  },
+
   computed: {
     peerCount() {
       return this.peers ? Object.keys(this.peers).length : 0;
@@ -39,6 +58,11 @@ export default defineComponent({
       <div class="tile">
         <video class="video mirror" :srcObject="localStream" muted autoplay />
         <span class="label">You</span>
+        <button v-if="pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 11h-8v6h8v-6zm4 10V3H1v18h22zm-2-1.98H3V4.97h18v14.05z" />
+          </svg>
+        </button>
       </div>
     </div>
     <div v-for="(peer, key) in peers" :key="key" class="cell">
@@ -49,6 +73,11 @@ export default defineComponent({
           :srcObject="peer.stream"
           autoplay
         />
+        <button v-if="peer.stream && pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 11h-8v6h8v-6zm4 10V3H1v18h22zm-2-1.98H3V4.97h18v14.05z" />
+          </svg>
+        </button>
         <div v-else class="status">
           <div v-if="peer.status === 'connecting'" class="status-connecting">
             <div class="spinner" />
@@ -114,6 +143,30 @@ export default defineComponent({
   font-size: 12px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.pip-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.tile:hover .pip-btn {
+  opacity: 1;
+}
+
+.pip-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .status {

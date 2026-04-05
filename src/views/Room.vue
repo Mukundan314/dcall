@@ -169,6 +169,7 @@ export default defineComponent({
       });
       this.micOn = !this.micOn;
     },
+
   },
 });
 </script>
@@ -270,8 +271,6 @@ export default defineComponent({
 .ctrl-btn.leave {
   background: #ea4335;
   color: #fff;
-  border-radius: 24px;
-  width: 64px;
 }
 
 .ctrl-btn.leave:hover {
