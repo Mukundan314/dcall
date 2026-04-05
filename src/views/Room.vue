@@ -1,6 +1,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import StreamContainer from "@/components/StreamContainer.vue";
+import type { PeerInfo } from "@/components/StreamContainer.vue";
 import { joinRoom } from "trystero";
 
 export default defineComponent({
@@ -18,9 +19,11 @@ export default defineComponent({
     return {
       room: null as ReturnType<typeof joinRoom> | null,
       localStream: new MediaStream(),
-      remoteStreams: {} as Record<string, MediaStream>,
+      peers: {} as Record<string, PeerInfo>,
+      peerTimers: {} as Record<string, number>,
       cameraOn: true,
       micOn: true,
+      stateInterval: null as ReturnType<typeof setInterval> | null,
     };
   },
 
@@ -49,30 +52,104 @@ export default defineComponent({
   },
 
   unmounted() {
+    if (this.stateInterval) clearInterval(this.stateInterval);
     this.room?.leave();
     this.localStream.getTracks().forEach((track) => track.stop());
   },
 
   methods: {
     setupRoom(name: string) {
+      if (this.stateInterval) clearInterval(this.stateInterval);
       this.room?.leave();
 
-      for (const key of Object.keys(this.remoteStreams)) {
-        delete this.remoteStreams[key];
+      for (const key of Object.keys(this.peers)) {
+        delete this.peers[key];
       }
 
       const room = joinRoom({ appId: "dcall" }, name);
       this.room = room;
 
-      room.addStream(this.localStream);
+      room.onPeerJoin((peerId) => {
+        this.peers[peerId] = {
+          stream: null,
+          status: "connecting",
+          error: "",
+        };
+        this.peerTimers[peerId] = Date.now();
+
+        if (this.localStream.getTracks().length > 0) {
+          room.addStream(this.localStream, [peerId]);
+        }
+      });
 
       room.onPeerLeave((peerId) => {
-        delete this.remoteStreams[peerId];
+        delete this.peers[peerId];
+        delete this.peerTimers[peerId];
       });
 
       room.onPeerStream((stream, peerId) => {
-        this.remoteStreams[peerId] = stream;
+        this.peers[peerId] = {
+          stream,
+          status: "connected",
+          error: "",
+        };
+        delete this.peerTimers[peerId];
       });
+
+      const CONNECT_TIMEOUT_MS = 15000;
+
+      this.stateInterval = setInterval(() => {
+        const rtcPeers = room.getPeers();
+        const now = Date.now();
+
+        for (const [peerId, peer] of Object.entries(this.peers)) {
+          if (peer.status !== "connecting") continue;
+
+          const pc = rtcPeers[peerId];
+          if (pc) {
+            if (
+              pc.connectionState === "connected" ||
+              pc.iceConnectionState === "connected" ||
+              pc.iceConnectionState === "completed"
+            ) {
+              continue;
+            }
+
+            if (
+              pc.connectionState === "failed" ||
+              pc.iceConnectionState === "failed"
+            ) {
+              this.peers[peerId] = {
+                stream: null,
+                status: "failed",
+                error: "Connection failed — a TURN server may be required",
+              };
+              delete this.peerTimers[peerId];
+              continue;
+            }
+
+            if (pc.iceConnectionState === "disconnected") {
+              this.peers[peerId] = {
+                stream: null,
+                status: "failed",
+                error: "Peer disconnected",
+              };
+              delete this.peerTimers[peerId];
+              continue;
+            }
+          }
+
+          const elapsed = now - (this.peerTimers[peerId] ?? now);
+          if (elapsed > CONNECT_TIMEOUT_MS) {
+            this.peers[peerId] = {
+              stream: null,
+              status: "failed",
+              error: "Connection timed out — a TURN server may be required",
+            };
+            delete this.peerTimers[peerId];
+          }
+        }
+      }, 2000);
     },
 
     leaveRoom() {
@@ -98,10 +175,7 @@ export default defineComponent({
 
 <template>
   <div class="room">
-    <StreamContainer
-      :localStream="localStream"
-      :remoteStreams="remoteStreams"
-    />
+    <StreamContainer :localStream="localStream" :peers="peers" />
     <div class="controls">
       <button
         class="ctrl-btn"
@@ -156,21 +230,13 @@ export default defineComponent({
   height: 100%;
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 
 .controls {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 14px;
-  background: rgba(30, 30, 30, 0.85);
-  backdrop-filter: blur(16px);
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px;
 }
 
 .ctrl-btn {

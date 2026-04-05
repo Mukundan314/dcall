@@ -1,17 +1,23 @@
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
 
+export interface PeerInfo {
+  stream: MediaStream | null;
+  status: "connecting" | "connected" | "failed";
+  error: string;
+}
+
 export default defineComponent({
   name: "StreamContainer",
 
   props: {
     localStream: MediaStream,
-    remoteStreams: Object as PropType<Record<string, MediaStream>>,
+    peers: Object as PropType<Record<string, PeerInfo>>,
   },
 
   computed: {
     peerCount() {
-      return this.remoteStreams ? Object.keys(this.remoteStreams).length : 0;
+      return this.peers ? Object.keys(this.peers).length : 0;
     },
     columns() {
       const total = this.peerCount + 1;
@@ -20,18 +26,44 @@ export default defineComponent({
       if (total <= 9) return 3;
       return 4;
     },
+    rows() {
+      return Math.ceil((this.peerCount + 1) / this.columns);
+    },
   },
 });
 </script>
 
 <template>
-  <div class="grid" :style="{ '--cols': columns }">
-    <div class="tile">
-      <video class="video mirror" :srcObject="localStream" muted autoplay />
-      <span class="label">You</span>
+  <div class="grid" :style="{ '--cols': columns, '--rows': rows }">
+    <div class="cell">
+      <div class="tile">
+        <video class="video mirror" :srcObject="localStream" muted autoplay />
+        <span class="label">You</span>
+      </div>
     </div>
-    <div v-for="(stream, key) in remoteStreams" :key="key" class="tile">
-      <video class="video" :srcObject="stream" autoplay />
+    <div v-for="(peer, key) in peers" :key="key" class="cell">
+      <div class="tile">
+        <video
+          v-if="peer.stream"
+          class="video"
+          :srcObject="peer.stream"
+          autoplay
+        />
+        <div v-else class="status">
+          <div v-if="peer.status === 'connecting'" class="status-connecting">
+            <div class="spinner" />
+            <span>Connecting</span>
+          </div>
+          <div v-else-if="peer.status === 'failed'" class="status-failed">
+            <svg class="warn-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+              />
+            </svg>
+            <span>{{ peer.error }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -39,20 +71,29 @@ export default defineComponent({
 <style scoped>
 .grid {
   flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(var(--cols), 1fr);
-  gap: 6px;
-  padding: 6px;
-  align-content: center;
-  overflow: hidden;
+  grid-template-rows: repeat(var(--rows), 1fr);
+  gap: 8px;
+  padding: 12px;
+}
+
+.cell {
+  container-type: size;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  min-width: 0;
 }
 
 .tile {
   position: relative;
+  width: min(100cqw, calc(100cqh / 9 * 16));
+  height: min(100cqh, calc(100cqw / 16 * 9));
   background: #1a1a1a;
   border-radius: 12px;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
 }
 
 .video {
@@ -73,5 +114,54 @@ export default defineComponent({
   font-size: 12px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.status {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-connecting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #888;
+  font-size: 13px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #888;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #ea4335;
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.warn-icon {
+  width: 28px;
+  height: 28px;
 }
 </style>
