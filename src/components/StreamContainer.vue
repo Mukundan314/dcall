@@ -1,10 +1,12 @@
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
 import PipIcon from "@/components/icons/PipIcon.vue";
+import WarningIcon from "@/components/icons/WarningIcon.vue";
 
 export interface PeerInfo {
   stream: MediaStream | null;
-  status: "connecting" | "connected";
+  status: "discovered" | "connecting" | "connected" | "failed";
+  error: string;
 }
 
 export default defineComponent({
@@ -12,6 +14,7 @@ export default defineComponent({
 
   components: {
     PipIcon,
+    WarningIcon,
   },
 
   props: {
@@ -80,9 +83,16 @@ export default defineComponent({
           <PipIcon />
         </button>
         <div v-else class="status">
-          <div class="status-connecting">
+          <div v-if="peer.status === 'discovered'" class="status-discovered">
+            <span>Discovered</span>
+          </div>
+          <div v-else-if="peer.status === 'connecting'" class="status-connecting">
             <div class="spinner" />
             <span>Connecting</span>
+          </div>
+          <div v-else-if="peer.status === 'failed'" class="status-failed">
+            <WarningIcon class="warn-icon" />
+            <span>{{ peer.error }}</span>
           </div>
         </div>
         <span class="label">{{ key }}</span>
@@ -195,4 +205,25 @@ export default defineComponent({
   }
 }
 
+.status-discovered {
+  color: #888;
+  font-size: 13px;
+}
+
+.status-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #ea4335;
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.warn-icon {
+  width: 28px;
+  height: 28px;
+}
 </style>

@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import StreamContainer from "@/components/StreamContainer.vue";
 import type { PeerInfo } from "@/components/StreamContainer.vue";
-import { joinRoom, selfId } from "trystero";
+import { Room } from "@/lib/room";
 import MicOnIcon from "@/components/icons/MicOnIcon.vue";
 import MicOffIcon from "@/components/icons/MicOffIcon.vue";
 import CameraOnIcon from "@/components/icons/CameraOnIcon.vue";
@@ -27,13 +27,18 @@ export default defineComponent({
 
   data() {
     return {
-      selfId,
-      room: null as ReturnType<typeof joinRoom> | null,
+      room: null as Room | null,
       localStream: new MediaStream(),
       peers: {} as Record<string, PeerInfo>,
       cameraOn: true,
       micOn: true,
     };
+  },
+
+  computed: {
+    localPeerId(): string {
+      return this.room?.peerId ?? "";
+    },
   },
 
   async mounted() {
@@ -67,29 +72,36 @@ export default defineComponent({
 
   methods: {
     async setupRoom(name: string) {
-      await this.room?.leave();
+      this.room?.leave();
 
       for (const key of Object.keys(this.peers)) {
         delete this.peers[key];
       }
 
-      const room = joinRoom({ appId: "dcall", _test_only_sharedPeerIdleMs: 0 }, name);
+      const room = new Room(name);
       this.room = room;
 
-      room.onPeerJoin((peerId) => {
-        this.peers[peerId] = { stream: null, status: "connecting" };
-        if (this.localStream.getTracks().length > 0) {
-          room.addStream(this.localStream, [peerId]);
+      room.onPeersChanged = () => {
+        // Sync room.peers into Vue-reactive this.peers
+        const current = new Set(Object.keys(this.peers));
+        const updated = new Set(Object.keys(room.peers));
+
+        for (const id of current) {
+          if (!updated.has(id)) {
+            delete this.peers[id];
+          }
         }
-      });
+        for (const id of updated) {
+          const p = room.peers[id];
+          this.peers[id] = {
+            stream: p.stream,
+            status: p.status,
+            error: p.error,
+          };
+        }
+      };
 
-      room.onPeerLeave((peerId) => {
-        delete this.peers[peerId];
-      });
-
-      room.onPeerStream((stream, peerId) => {
-        this.peers[peerId] = { stream, status: "connected" };
-      });
+      await room.join(this.localStream);
     },
 
     leaveRoom() {
@@ -116,7 +128,7 @@ export default defineComponent({
 
 <template>
   <div class="room">
-    <StreamContainer :localStream="localStream" :localPeerId="selfId" :peers="peers" />
+    <StreamContainer :localStream="localStream" :localPeerId="localPeerId" :peers="peers" />
     <div class="controls">
       <button
         class="ctrl-btn"
