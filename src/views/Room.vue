@@ -2,7 +2,7 @@
 import { defineComponent } from "vue";
 import StreamContainer from "@/components/StreamContainer.vue";
 import type { PeerInfo } from "@/components/StreamContainer.vue";
-import { joinRoom } from "trystero";
+import { joinRoom, selfId } from "trystero";
 import MicOnIcon from "@/components/icons/MicOnIcon.vue";
 import MicOffIcon from "@/components/icons/MicOffIcon.vue";
 import CameraOnIcon from "@/components/icons/CameraOnIcon.vue";
@@ -27,13 +27,12 @@ export default defineComponent({
 
   data() {
     return {
+      selfId,
       room: null as ReturnType<typeof joinRoom> | null,
       localStream: new MediaStream(),
       peers: {} as Record<string, PeerInfo>,
-      peerTimers: {} as Record<string, number>,
       cameraOn: true,
       micOn: true,
-      stateInterval: null as ReturnType<typeof setInterval> | null,
     };
   },
 
@@ -62,31 +61,23 @@ export default defineComponent({
   },
 
   unmounted() {
-    if (this.stateInterval) clearInterval(this.stateInterval);
     this.room?.leave();
     this.localStream.getTracks().forEach((track) => track.stop());
   },
 
   methods: {
-    setupRoom(name: string) {
-      if (this.stateInterval) clearInterval(this.stateInterval);
-      this.room?.leave();
+    async setupRoom(name: string) {
+      await this.room?.leave();
 
       for (const key of Object.keys(this.peers)) {
         delete this.peers[key];
       }
 
-      const room = joinRoom({ appId: "dcall" }, name);
+      const room = joinRoom({ appId: "dcall", _test_only_sharedPeerIdleMs: 0 }, name);
       this.room = room;
 
       room.onPeerJoin((peerId) => {
-        this.peers[peerId] = {
-          stream: null,
-          status: "connecting",
-          error: "",
-        };
-        this.peerTimers[peerId] = Date.now();
-
+        this.peers[peerId] = { stream: null, status: "connecting" };
         if (this.localStream.getTracks().length > 0) {
           room.addStream(this.localStream, [peerId]);
         }
@@ -94,72 +85,11 @@ export default defineComponent({
 
       room.onPeerLeave((peerId) => {
         delete this.peers[peerId];
-        delete this.peerTimers[peerId];
       });
 
       room.onPeerStream((stream, peerId) => {
-        this.peers[peerId] = {
-          stream,
-          status: "connected",
-          error: "",
-        };
-        delete this.peerTimers[peerId];
+        this.peers[peerId] = { stream, status: "connected" };
       });
-
-      const CONNECT_TIMEOUT_MS = 15000;
-
-      this.stateInterval = setInterval(() => {
-        const rtcPeers = room.getPeers();
-        const now = Date.now();
-
-        for (const [peerId, peer] of Object.entries(this.peers)) {
-          if (peer.status !== "connecting") continue;
-
-          const pc = rtcPeers[peerId];
-          if (pc) {
-            if (
-              pc.connectionState === "connected" ||
-              pc.iceConnectionState === "connected" ||
-              pc.iceConnectionState === "completed"
-            ) {
-              continue;
-            }
-
-            if (
-              pc.connectionState === "failed" ||
-              pc.iceConnectionState === "failed"
-            ) {
-              this.peers[peerId] = {
-                stream: null,
-                status: "failed",
-                error: "Connection failed — a TURN server may be required",
-              };
-              delete this.peerTimers[peerId];
-              continue;
-            }
-
-            if (pc.iceConnectionState === "disconnected") {
-              this.peers[peerId] = {
-                stream: null,
-                status: "failed",
-                error: "Peer disconnected",
-              };
-              delete this.peerTimers[peerId];
-              continue;
-            }
-          }
-
-          const elapsed = now - (this.peerTimers[peerId] ?? now);
-          if (elapsed > CONNECT_TIMEOUT_MS) {
-            this.peers[peerId] = {
-              stream: null,
-              status: "failed",
-              error: "Connection timed out — a TURN server may be required",
-            };
-            delete this.peerTimers[peerId];
-          }
-        }
-      }, 2000);
     },
 
     leaveRoom() {
@@ -186,7 +116,7 @@ export default defineComponent({
 
 <template>
   <div class="room">
-    <StreamContainer :localStream="localStream" :peers="peers" />
+    <StreamContainer :localStream="localStream" :localPeerId="selfId" :peers="peers" />
     <div class="controls">
       <button
         class="ctrl-btn"

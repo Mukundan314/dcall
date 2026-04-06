@@ -1,12 +1,10 @@
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
 import PipIcon from "@/components/icons/PipIcon.vue";
-import WarningIcon from "@/components/icons/WarningIcon.vue";
 
 export interface PeerInfo {
   stream: MediaStream | null;
-  status: "connecting" | "connected" | "failed";
-  error: string;
+  status: "connecting" | "connected";
 }
 
 export default defineComponent({
@@ -14,11 +12,11 @@ export default defineComponent({
 
   components: {
     PipIcon,
-    WarningIcon,
   },
 
   props: {
     localStream: MediaStream,
+    localPeerId: String,
     peers: Object as PropType<Record<string, PeerInfo>>,
   },
 
@@ -64,7 +62,7 @@ export default defineComponent({
     <div class="cell">
       <div class="tile">
         <video class="video mirror" :srcObject="localStream" muted autoplay />
-        <span class="label">You</span>
+        <span class="label">{{ localPeerId }}</span>
         <button v-if="pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
           <PipIcon />
         </button>
@@ -82,15 +80,12 @@ export default defineComponent({
           <PipIcon />
         </button>
         <div v-else class="status">
-          <div v-if="peer.status === 'connecting'" class="status-connecting">
+          <div class="status-connecting">
             <div class="spinner" />
             <span>Connecting</span>
           </div>
-          <div v-else-if="peer.status === 'failed'" class="status-failed">
-            <WarningIcon class="warn-icon" />
-            <span>{{ peer.error }}</span>
-          </div>
         </div>
+        <span class="label">{{ key }}</span>
       </div>
     </div>
   </div>
@@ -200,20 +195,4 @@ export default defineComponent({
   }
 }
 
-.status-failed {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: #ea4335;
-  font-size: 13px;
-  padding: 16px;
-  text-align: center;
-  line-height: 1.4;
-}
-
-.warn-icon {
-  width: 28px;
-  height: 28px;
-}
 </style>
