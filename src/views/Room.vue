@@ -3,12 +3,22 @@ import { defineComponent } from "vue";
 import StreamContainer from "@/components/StreamContainer.vue";
 import type { PeerInfo } from "@/components/StreamContainer.vue";
 import { joinRoom } from "trystero";
+import MicOnIcon from "@/components/icons/MicOnIcon.vue";
+import MicOffIcon from "@/components/icons/MicOffIcon.vue";
+import CameraOnIcon from "@/components/icons/CameraOnIcon.vue";
+import CameraOffIcon from "@/components/icons/CameraOffIcon.vue";
+import HangUpIcon from "@/components/icons/HangUpIcon.vue";
 
 export default defineComponent({
   name: "Room",
 
   components: {
     StreamContainer,
+    MicOnIcon,
+    MicOffIcon,
+    CameraOnIcon,
+    CameraOffIcon,
+    HangUpIcon,
   },
 
   props: {
@@ -184,17 +194,8 @@ export default defineComponent({
         @click="toggleMicrophone"
         :title="micOn ? 'Mute' : 'Unmute'"
       >
-        <svg v-if="micOn" viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm-1-9a1 1 0 1 1 2 0v6a1 1 0 1 1-2 0V5zm6 6a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V20H8v2h8v-2h-3v-2.07A7 7 0 0 0 19 11h-2z"
-          />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M19 11h-2a5 5 0 0 1-.78 2.68l1.46 1.46A6.96 6.96 0 0 0 19 11zm-4.27.91L8 5.18V5a4 4 0 0 1 7.73 1.02L14.73 11.91zM4.27 3L3 4.27l6 6V11a3 3 0 0 0 4.52 2.59l1.7 1.7A6.97 6.97 0 0 1 13 17.93V20h3v2H8v-2h3v-2.07A7 7 0 0 1 5 11h2a5 5 0 0 0 7.72 4.18l1.55 1.55A6.95 6.95 0 0 1 12 18a7 7 0 0 1-7-7h-.01L3 9.27 4.27 3z"
-          />
-          <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2" />
-        </svg>
+        <MicOnIcon v-if="micOn" />
+        <MicOffIcon v-else />
       </button>
 
       <button
@@ -203,24 +204,12 @@ export default defineComponent({
         @click="toggleCamera"
         :title="cameraOn ? 'Turn off camera' : 'Turn on camera'"
       >
-        <svg v-if="cameraOn" viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"
-          />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M21 6.5l-4 4V7a1 1 0 0 0-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12c.2 0 .39-.06.55-.16L19.73 21 21 19.73 3.27 2z"
-          />
-        </svg>
+        <CameraOnIcon v-if="cameraOn" />
+        <CameraOffIcon v-else />
       </button>
 
       <button class="ctrl-btn leave" @click="leaveRoom" title="Leave call">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1 0-1.36C3.69 8.68 7.65 7 12 7s8.31 1.68 11.71 4.72c.38.36.38.96 0 1.36l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 0 0-2.67-1.85.996.996 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
-          />
-        </svg>
+        <HangUpIcon />
       </button>
     </div>
   </div>

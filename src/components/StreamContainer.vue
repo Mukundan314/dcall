@@ -1,5 +1,7 @@
 <script lang="ts">
 import { defineComponent, PropType } from "vue";
+import PipIcon from "@/components/icons/PipIcon.vue";
+import WarningIcon from "@/components/icons/WarningIcon.vue";
 
 export interface PeerInfo {
   stream: MediaStream | null;
@@ -9,6 +11,11 @@ export interface PeerInfo {
 
 export default defineComponent({
   name: "StreamContainer",
+
+  components: {
+    PipIcon,
+    WarningIcon,
+  },
 
   props: {
     localStream: MediaStream,
@@ -59,9 +66,7 @@ export default defineComponent({
         <video class="video mirror" :srcObject="localStream" muted autoplay />
         <span class="label">You</span>
         <button v-if="pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 11h-8v6h8v-6zm4 10V3H1v18h22zm-2-1.98H3V4.97h18v14.05z" />
-          </svg>
+          <PipIcon />
         </button>
       </div>
     </div>
@@ -74,9 +79,7 @@ export default defineComponent({
           autoplay
         />
         <button v-if="peer.stream && pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 11h-8v6h8v-6zm4 10V3H1v18h22zm-2-1.98H3V4.97h18v14.05z" />
-          </svg>
+          <PipIcon />
         </button>
         <div v-else class="status">
           <div v-if="peer.status === 'connecting'" class="status-connecting">
@@ -84,11 +87,7 @@ export default defineComponent({
             <span>Connecting</span>
           </div>
           <div v-else-if="peer.status === 'failed'" class="status-failed">
-            <svg class="warn-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path
-                d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
-              />
-            </svg>
+            <WarningIcon class="warn-icon" />
             <span>{{ peer.error }}</span>
           </div>
         </div>

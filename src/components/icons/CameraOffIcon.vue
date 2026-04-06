@@ -1,0 +1,7 @@
+<template>
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <path
+      d="M21 6.5l-4 4V7a1 1 0 0 0-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12c.2 0 .39-.06.55-.16L19.73 21 21 19.73 3.27 2z"
+    />
+  </svg>
+</template>
