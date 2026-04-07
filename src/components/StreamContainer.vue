@@ -26,7 +26,25 @@ export default defineComponent({
   data() {
     return {
       pipSupported: document.pictureInPictureEnabled ?? false,
+      containerWidth: 0,
+      containerHeight: 0,
+      resizeObserver: null as ResizeObserver | null,
     };
+  },
+
+  mounted() {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        this.containerWidth = entry.contentRect.width;
+        this.containerHeight = entry.contentRect.height;
+      }
+    });
+    this.resizeObserver.observe(this.$el);
+  },
+
+  beforeUnmount() {
+    this.resizeObserver?.disconnect();
   },
 
   methods: {
@@ -47,11 +65,31 @@ export default defineComponent({
       return this.peers ? Object.keys(this.peers).length : 0;
     },
     columns() {
-      const total = this.peerCount + 1;
-      if (total <= 1) return 1;
-      if (total <= 4) return 2;
-      if (total <= 9) return 3;
-      return 4;
+      const n = this.peerCount + 1;
+      if (n <= 1) return 1;
+
+      const W = this.containerWidth;
+      const H = this.containerHeight;
+      if (!W || !H) return Math.ceil(Math.sqrt(n));
+
+      const GAP = 8;
+      const ASPECT = 16 / 9;
+      let bestCols = 1;
+      let bestArea = 0;
+
+      for (let cols = 1; cols <= n; cols++) {
+        const rows = Math.ceil(n / cols);
+        const cellW = (W - (cols - 1) * GAP) / cols;
+        const cellH = (H - (rows - 1) * GAP) / rows;
+        const tileW = Math.min(cellW, cellH * ASPECT);
+        const area = tileW * (tileW / ASPECT);
+        if (area > bestArea) {
+          bestArea = area;
+          bestCols = cols;
+        }
+      }
+
+      return bestCols;
     },
     rows() {
       return Math.ceil((this.peerCount + 1) / this.columns);
