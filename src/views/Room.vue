@@ -1,5 +1,6 @@
-<script lang="ts">
-import { defineComponent } from "vue";
+<script setup lang="ts">
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import StreamContainer from "@/components/StreamContainer.vue";
 import type { PeerInfo } from "@/components/StreamContainer.vue";
 import { Room } from "@/lib/room";
@@ -9,126 +10,114 @@ import CameraOnIcon from "@/components/icons/CameraOnIcon.vue";
 import CameraOffIcon from "@/components/icons/CameraOffIcon.vue";
 import HangUpIcon from "@/components/icons/HangUpIcon.vue";
 
-export default defineComponent({
-  name: "Room",
+const router = useRouter();
 
-  components: {
-    StreamContainer,
-    MicOnIcon,
-    MicOffIcon,
-    CameraOnIcon,
-    CameraOffIcon,
-    HangUpIcon,
-  },
+const props = defineProps<{
+  name?: string;
+}>();
 
-  props: {
-    name: String,
-  },
+const room = ref<Room | null>(null);
+const localStream = ref(new MediaStream());
+const peers = reactive<Record<string, PeerInfo>>({});
+const cameraOn = ref(true);
+const micOn = ref(true);
 
-  data() {
-    return {
-      room: null as Room | null,
-      localStream: new MediaStream(),
-      peers: {} as Record<string, PeerInfo>,
-      cameraOn: true,
-      micOn: true,
-    };
-  },
+const localPeerId = computed(() => room.value?.peerId ?? "");
 
-  computed: {
-    localPeerId(): string {
-      return this.room?.peerId ?? "";
-    },
-  },
-
-  async mounted() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-      stream.getTracks().forEach((track) => this.localStream.addTrack(track));
-    } catch (e) {
-      console.warn("Could not access camera/microphone:", e);
-      this.cameraOn = false;
-      this.micOn = false;
-    }
-    this.setupRoom(this.name!);
-  },
-
-  watch: {
-    name(val: string) {
-      this.setupRoom(val);
-    },
-  },
-
-  unmounted() {
-    this.room?.leave();
-    this.localStream.getTracks().forEach((track) => track.stop());
-  },
-
-  methods: {
-    async setupRoom(name: string) {
-      this.room?.leave();
-
-      for (const key of Object.keys(this.peers)) {
-        delete this.peers[key];
-      }
-
-      const room = new Room(name);
-      this.room = room;
-
-      room.onPeersChanged = () => {
-        // Sync room.peers into Vue-reactive this.peers
-        const current = new Set(Object.keys(this.peers));
-        const updated = new Set(Object.keys(room.peers));
-
-        for (const id of current) {
-          if (!updated.has(id)) {
-            delete this.peers[id];
-          }
-        }
-        for (const id of updated) {
-          const p = room.peers[id];
-          this.peers[id] = {
-            stream: p.stream,
-            status: p.status,
-            error: p.error,
-          };
-        }
-      };
-
-      await room.join(this.localStream);
-    },
-
-    leaveRoom() {
-      this.$router.push({ name: "Home" });
-    },
-
-    toggleCamera() {
-      this.localStream.getVideoTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-      this.cameraOn = !this.cameraOn;
-    },
-
-    toggleMicrophone() {
-      this.localStream.getAudioTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-      this.micOn = !this.micOn;
-    },
-
-  },
+onMounted(async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+    });
+    stream.getTracks().forEach((track) => localStream.value.addTrack(track));
+  } catch (e) {
+    console.warn("Could not access camera/microphone:", e);
+    cameraOn.value = false;
+    micOn.value = false;
+  }
+  setupRoom(props.name!);
 });
+
+watch(
+  () => props.name,
+  (val) => {
+    if (val) setupRoom(val);
+  },
+);
+
+onUnmounted(() => {
+  room.value?.leave();
+  localStream.value.getTracks().forEach((track) => track.stop());
+});
+
+async function setupRoom(name: string) {
+  room.value?.leave();
+
+  for (const key of Object.keys(peers)) {
+    delete peers[key];
+  }
+
+  const r = new Room(name);
+  room.value = r;
+
+  r.onPeersChanged = () => {
+    const current = new Set(Object.keys(peers));
+    const updated = new Set(Object.keys(r.peers));
+
+    for (const id of current) {
+      if (!updated.has(id)) {
+        delete peers[id];
+      }
+    }
+    for (const id of updated) {
+      const p = r.peers[id];
+      peers[id] = {
+        stream: p.stream,
+        status: p.status,
+        error: p.error,
+        micOn: p.micOn,
+        cameraOn: p.cameraOn,
+      };
+    }
+  };
+
+  await r.join(localStream.value);
+}
+
+function leaveRoom() {
+  router.push({ name: "Home" });
+}
+
+function toggleCamera() {
+  localStream.value.getVideoTracks().forEach((track) => {
+    track.enabled = !track.enabled;
+  });
+  cameraOn.value = !cameraOn.value;
+  room.value?.sendMuteState(micOn.value, cameraOn.value);
+}
+
+function toggleMicrophone() {
+  localStream.value.getAudioTracks().forEach((track) => {
+    track.enabled = !track.enabled;
+  });
+  micOn.value = !micOn.value;
+  room.value?.sendMuteState(micOn.value, cameraOn.value);
+}
 </script>
 
 <template>
   <div class="room">
-    <StreamContainer :localStream="localStream" :localPeerId="localPeerId" :peers="peers" />
+    <StreamContainer
+      :localStream="localStream"
+      :localPeerId="localPeerId"
+      :peers="peers"
+      :micOn="micOn"
+      :cameraOn="cameraOn"
+    />
     <div class="controls">
       <button
         class="ctrl-btn"

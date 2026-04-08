@@ -1,60 +1,53 @@
-<script lang="ts">
-import { defineComponent } from "vue";
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import MicOnIcon from "@/components/icons/MicOnIcon.vue";
 import MicOffIcon from "@/components/icons/MicOffIcon.vue";
 import CameraOnIcon from "@/components/icons/CameraOnIcon.vue";
 import CameraOffIcon from "@/components/icons/CameraOffIcon.vue";
 
-export default defineComponent({
-  name: "Home",
-  components: {
-    MicOnIcon,
-    MicOffIcon,
-    CameraOnIcon,
-    CameraOffIcon,
-  },
-  data() {
-    return {
-      roomName: "",
-      previewStream: null as MediaStream | null,
-      cameraOn: true,
-      micOn: true,
-    };
-  },
-  async mounted() {
-    try {
-      this.previewStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-    } catch {
-      this.cameraOn = false;
-      this.micOn = false;
-    }
-  },
-  unmounted() {
-    this.previewStream?.getTracks().forEach((track) => track.stop());
-  },
-  methods: {
-    joinRoom() {
-      if (this.roomName.trim()) {
-        this.$router.push({ name: "Room", params: { name: this.roomName } });
-      }
-    },
-    toggleCamera() {
-      this.previewStream?.getVideoTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-      this.cameraOn = !this.cameraOn;
-    },
-    toggleMic() {
-      this.previewStream?.getAudioTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-      this.micOn = !this.micOn;
-    },
-  },
+const router = useRouter();
+
+const roomName = ref("");
+const previewStream = ref<MediaStream | null>(null);
+const cameraOn = ref(true);
+const micOn = ref(true);
+
+onMounted(async () => {
+  try {
+    previewStream.value = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+  } catch {
+    cameraOn.value = false;
+    micOn.value = false;
+  }
 });
+
+onUnmounted(() => {
+  previewStream.value?.getTracks().forEach((track) => track.stop());
+});
+
+function joinRoom() {
+  if (roomName.value.trim()) {
+    router.push({ name: "Room", params: { name: roomName.value } });
+  }
+}
+
+function toggleCamera() {
+  previewStream.value?.getVideoTracks().forEach((track) => {
+    track.enabled = !track.enabled;
+  });
+  cameraOn.value = !cameraOn.value;
+}
+
+function toggleMic() {
+  previewStream.value?.getAudioTracks().forEach((track) => {
+    track.enabled = !track.enabled;
+  });
+  micOn.value = !micOn.value;
+}
 </script>
 
 <template>

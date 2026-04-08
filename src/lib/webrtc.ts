@@ -2,12 +2,15 @@ export interface PeerConnectionCallbacks {
   onIceCandidate(candidate: RTCIceCandidateInit): void;
   onStream(stream: MediaStream): void;
   onConnectionStateChange(state: RTCPeerConnectionState): void;
+  onMessage(data: string): void;
+  onDataChannelOpen(): void;
 }
 
 export class PeerConnection {
   readonly pc: RTCPeerConnection;
   private readonly callbacks: PeerConnectionCallbacks;
   private pendingCandidates: RTCIceCandidateInit[] = [];
+  private dc: RTCDataChannel | null = null;
 
   constructor(config: RTCConfiguration, callbacks: PeerConnectionCallbacks) {
     this.callbacks = callbacks;
@@ -31,6 +34,10 @@ export class PeerConnection {
 
     this.pc.onconnectionstatechange = () => {
       callbacks.onConnectionStateChange(this.pc.connectionState);
+    };
+
+    this.pc.ondatachannel = ({ channel }) => {
+      this.setupDataChannel(channel);
     };
   }
 
@@ -75,8 +82,28 @@ export class PeerConnection {
     }
   }
 
+  createDataChannel(label: string): void {
+    this.setupDataChannel(this.pc.createDataChannel(label));
+  }
+
+  send(data: string): void {
+    if (this.dc?.readyState === "open") {
+      this.dc.send(data);
+    }
+  }
+
   close(): void {
     this.pc.close();
+  }
+
+  private setupDataChannel(channel: RTCDataChannel): void {
+    this.dc = channel;
+    channel.onmessage = ({ data }) => {
+      this.callbacks.onMessage(data);
+    };
+    channel.onopen = () => {
+      this.callbacks.onDataChannelOpen();
+    };
   }
 
   private flushCandidates(): void {

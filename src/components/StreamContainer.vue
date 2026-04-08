@@ -1,110 +1,121 @@
-<script lang="ts">
-import { defineComponent, PropType } from "vue";
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount, useTemplateRef } from "vue";
 import PipIcon from "@/components/icons/PipIcon.vue";
 import WarningIcon from "@/components/icons/WarningIcon.vue";
+import MicOffIcon from "@/components/icons/MicOffIcon.vue";
+import CameraOffIcon from "@/components/icons/CameraOffIcon.vue";
 
 export interface PeerInfo {
   stream: MediaStream | null;
   status: "discovered" | "connecting" | "connected" | "failed";
   error: string;
+  micOn: boolean;
+  cameraOn: boolean;
 }
 
-export default defineComponent({
-  name: "StreamContainer",
-
-  components: {
-    PipIcon,
-    WarningIcon,
+const props = withDefaults(
+  defineProps<{
+    localStream?: MediaStream;
+    localPeerId?: string;
+    peers?: Record<string, PeerInfo>;
+    micOn?: boolean;
+    cameraOn?: boolean;
+  }>(),
+  {
+    micOn: true,
+    cameraOn: true,
   },
+);
 
-  props: {
-    localStream: MediaStream,
-    localPeerId: String,
-    peers: Object as PropType<Record<string, PeerInfo>>,
-  },
+const gridEl = useTemplateRef("grid");
+const pipSupported = ref(document.pictureInPictureEnabled ?? false);
+const containerWidth = ref(0);
+const containerHeight = ref(0);
+let resizeObserver: ResizeObserver | null = null;
 
-  data() {
-    return {
-      pipSupported: document.pictureInPictureEnabled ?? false,
-      containerWidth: 0,
-      containerHeight: 0,
-      resizeObserver: null as ResizeObserver | null,
-    };
-  },
+onMounted(() => {
+  resizeObserver = new ResizeObserver((entries) => {
+    const entry = entries[0];
+    if (entry) {
+      containerWidth.value = entry.contentRect.width;
+      containerHeight.value = entry.contentRect.height;
+    }
+  });
+  resizeObserver.observe(gridEl.value!);
+});
 
-  mounted() {
-    this.resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) {
-        this.containerWidth = entry.contentRect.width;
-        this.containerHeight = entry.contentRect.height;
-      }
-    });
-    this.resizeObserver.observe(this.$el);
-  },
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+});
 
-  beforeUnmount() {
-    this.resizeObserver?.disconnect();
-  },
+async function pip(event: Event) {
+  const tile = (event.target as HTMLElement).closest(".tile");
+  const video = tile?.querySelector("video");
+  if (!video) return;
+  if (document.pictureInPictureElement === video) {
+    await document.exitPictureInPicture();
+  } else {
+    await video.requestPictureInPicture();
+  }
+}
 
-  methods: {
-    async pip(event: Event) {
-      const tile = (event.target as HTMLElement).closest(".tile");
-      const video = tile?.querySelector("video");
-      if (!video) return;
-      if (document.pictureInPictureElement === video) {
-        await document.exitPictureInPicture();
-      } else {
-        await video.requestPictureInPicture();
-      }
-    },
-  },
+const peerCount = computed(() => {
+  return props.peers ? Object.keys(props.peers).length : 0;
+});
 
-  computed: {
-    peerCount() {
-      return this.peers ? Object.keys(this.peers).length : 0;
-    },
-    columns() {
-      const n = this.peerCount + 1;
-      if (n <= 1) return 1;
+const columns = computed(() => {
+  const n = peerCount.value + 1;
+  if (n <= 1) return 1;
 
-      const W = this.containerWidth;
-      const H = this.containerHeight;
-      if (!W || !H) return Math.ceil(Math.sqrt(n));
+  const W = containerWidth.value;
+  const H = containerHeight.value;
+  if (!W || !H) return Math.ceil(Math.sqrt(n));
 
-      const GAP = 8;
-      const ASPECT = 16 / 9;
-      let bestCols = 1;
-      let bestArea = 0;
+  const GAP = 8;
+  const ASPECT = 16 / 9;
+  let bestCols = 1;
+  let bestArea = 0;
 
-      for (let cols = 1; cols <= n; cols++) {
-        const rows = Math.ceil(n / cols);
-        const cellW = (W - (cols - 1) * GAP) / cols;
-        const cellH = (H - (rows - 1) * GAP) / rows;
-        const tileW = Math.min(cellW, cellH * ASPECT);
-        const area = tileW * (tileW / ASPECT);
-        if (area > bestArea) {
-          bestArea = area;
-          bestCols = cols;
-        }
-      }
+  for (let cols = 1; cols <= n; cols++) {
+    const rows = Math.ceil(n / cols);
+    const cellW = (W - (cols - 1) * GAP) / cols;
+    const cellH = (H - (rows - 1) * GAP) / rows;
+    const tileW = Math.min(cellW, cellH * ASPECT);
+    const area = tileW * (tileW / ASPECT);
+    if (area > bestArea) {
+      bestArea = area;
+      bestCols = cols;
+    }
+  }
 
-      return bestCols;
-    },
-    rows() {
-      return Math.ceil((this.peerCount + 1) / this.columns);
-    },
-  },
+  return bestCols;
+});
+
+const rows = computed(() => {
+  return Math.ceil((peerCount.value + 1) / columns.value);
 });
 </script>
 
 <template>
-  <div class="grid" :style="{ '--cols': columns, '--rows': rows }">
+  <div ref="grid" class="grid" :style="{ '--cols': columns, '--rows': rows }">
     <div class="cell">
       <div class="tile">
         <video class="video mirror" :srcObject="localStream" muted autoplay />
         <span class="label">{{ localPeerId }}</span>
-        <button v-if="pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
+        <div v-if="!micOn || !cameraOn" class="mute-indicators">
+          <span v-if="!micOn" class="mute-icon" title="Microphone off"
+            ><MicOffIcon
+          /></span>
+          <span v-if="!cameraOn" class="mute-icon" title="Camera off"
+            ><CameraOffIcon
+          /></span>
+        </div>
+        <button
+          v-if="pipSupported"
+          class="pip-btn"
+          @click="pip"
+          title="Picture in picture"
+        >
           <PipIcon />
         </button>
       </div>
@@ -117,14 +128,30 @@ export default defineComponent({
           :srcObject="peer.stream"
           autoplay
         />
-        <button v-if="peer.stream && pipSupported" class="pip-btn" @click="pip" title="Picture in picture">
+        <div v-if="!peer.micOn || !peer.cameraOn" class="mute-indicators">
+          <span v-if="!peer.micOn" class="mute-icon" title="Microphone off"
+            ><MicOffIcon
+          /></span>
+          <span v-if="!peer.cameraOn" class="mute-icon" title="Camera off"
+            ><CameraOffIcon
+          /></span>
+        </div>
+        <button
+          v-if="peer.stream && pipSupported"
+          class="pip-btn"
+          @click="pip"
+          title="Picture in picture"
+        >
           <PipIcon />
         </button>
         <div v-else class="status">
           <div v-if="peer.status === 'discovered'" class="status-discovered">
             <span>Discovered</span>
           </div>
-          <div v-else-if="peer.status === 'connecting'" class="status-connecting">
+          <div
+            v-else-if="peer.status === 'connecting'"
+            class="status-connecting"
+          >
             <div class="spinner" />
             <span>Connecting</span>
           </div>
@@ -185,6 +212,26 @@ export default defineComponent({
   font-size: 12px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.mute-indicators {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.mute-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border-radius: 6px;
+  background: rgba(234, 67, 53, 0.85);
+  color: #fff;
 }
 
 .pip-btn {

@@ -40,7 +40,11 @@ export async function encrypt(
     key,
     encoder.encode(plaintext),
   );
-  return iv.join(",") + "$" + btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
+  return (
+    iv.join(",") +
+    "$" +
+    btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
+  );
 }
 
 export async function decrypt(

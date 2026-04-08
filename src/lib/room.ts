@@ -10,6 +10,8 @@ export interface PeerState {
   stream: MediaStream | null;
   lastHeartbeat: number;
   error: string;
+  micOn: boolean;
+  cameraOn: boolean;
 }
 
 export class Room {
@@ -24,6 +26,8 @@ export class Room {
   private connections: Record<string, PeerConnection> = {};
   private heartbeatCheckerTimer: ReturnType<typeof setInterval> | null = null;
   private localStream: MediaStream | null = null;
+  private localMicOn = true;
+  private localCameraOn = true;
 
   constructor(roomName: string, config?: Partial<Config>) {
     this.roomName = roomName;
@@ -97,12 +101,7 @@ export class Room {
     }
 
     // New peer
-    this.peers[peerId] = {
-      status: "discovered",
-      stream: null,
-      lastHeartbeat: Date.now(),
-      error: "",
-    };
+    this.peers[peerId] = this.newPeerState("discovered");
     this.onPeersChanged?.();
 
     // Send immediate heartbeat back so they discover us quickly
@@ -117,12 +116,7 @@ export class Room {
 
     // Add peer if not yet tracked (offer arrived before heartbeat)
     if (!this.peers[peerId]) {
-      this.peers[peerId] = {
-        status: "connecting",
-        stream: null,
-        lastHeartbeat: Date.now(),
-        error: "",
-      };
+      this.peers[peerId] = this.newPeerState("connecting");
       this.onPeersChanged?.();
     }
 
@@ -160,6 +154,7 @@ export class Room {
 
     this.destroyConnection(peerId);
     const pc = this.createPeerConnection(peerId);
+    pc.createDataChannel("data");
 
     if (this.peers[peerId]) {
       this.peers[peerId].status = "connecting";
@@ -173,6 +168,15 @@ export class Room {
     pc.createOffer().then((sdp) => {
       this.signaling?.sendOffer(peerId, sdp);
     });
+  }
+
+  sendMuteState(micOn: boolean, cameraOn: boolean): void {
+    this.localMicOn = micOn;
+    this.localCameraOn = cameraOn;
+    const msg = JSON.stringify({ type: "mute-state", micOn, cameraOn });
+    for (const pc of Object.values(this.connections)) {
+      pc.send(msg);
+    }
   }
 
   private createPeerConnection(peerId: string): PeerConnection {
@@ -202,10 +206,34 @@ export class Room {
           }
         }
       },
+      onMessage: (data) => {
+        try {
+          const msg = JSON.parse(data);
+          if (msg.type === "mute-state" && this.peers[peerId]) {
+            this.peers[peerId].micOn = msg.micOn;
+            this.peers[peerId].cameraOn = msg.cameraOn;
+            this.onPeersChanged?.();
+          }
+        } catch {}
+      },
+      onDataChannelOpen: () => {
+        this.sendMuteState(this.localMicOn, this.localCameraOn);
+      },
     });
 
     this.connections[peerId] = pc;
     return pc;
+  }
+
+  private newPeerState(status: PeerStatus): PeerState {
+    return {
+      status,
+      stream: null,
+      lastHeartbeat: Date.now(),
+      error: "",
+      micOn: true,
+      cameraOn: true,
+    };
   }
 
   private destroyConnection(peerId: string): void {
